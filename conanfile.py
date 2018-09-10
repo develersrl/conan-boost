@@ -27,13 +27,15 @@ class BoostConan(ConanFile):
         "header_only": [True, False],
         "fPIC": [True, False],
         "skip_lib_rename": [True, False],
-        "magic_autolink": [True, False] # enables BOOST_ALL_NO_LIB
+        "magic_autolink": [True, False], # enables BOOST_ALL_NO_LIB
+        "toolset": "ANY"
     }
     options.update({"without_%s" % libname: [True, False] for libname in lib_list})
 
     default_options = ["shared=False", "header_only=False", "fPIC=True", "skip_lib_rename=False", "magic_autolink=False"]
     default_options.extend(["without_%s=False" % libname for libname in lib_list if libname != "python"])
     default_options.append("without_python=True")
+    default_options.append("toolset=")
     default_options = tuple(default_options)
 
     url = "https://github.com/lasote/conan-boost"
@@ -55,7 +57,7 @@ class BoostConan(ConanFile):
         if self.zip_bzip2_requires_needed:
             self.requires("bzip2/1.0.6@conan/stable")
             self.options["bzip2"].shared = False
-            
+
             self.requires("zlib/1.2.11@conan/stable")
             self.options["zlib"].shared = False
 
@@ -95,6 +97,8 @@ class BoostConan(ConanFile):
         full_command = "%s %s -j%s --abbreviate-paths -d2" % (b2_exe, b2_flags, tools.cpu_count())
         # -d2 is to print more debug info and avoid travis timing out without output
         sources = os.path.join(self.source_folder, self.folder_name)
+        if self.options.toolset:
+            full_command += ' toolset=' + self.options.toolset.value
         full_command += ' --debug-configuration --build-dir="%s"' % self.build_folder
         self.output.warn(full_command)
 
