@@ -218,12 +218,15 @@ class BoostConan(ConanFile):
                   "iOS": "iphone",
                   "watchOS": "iphone",
                   "tvOS": "appletv",
-                  "freeBSD": "freebsd"}.get(str(self.settings.os), None)
+                  "freeBSD": "freebsd",
+                  "Wasm": "wasm"}.get(str(self.settings.os), None)
 
         if not target:
             raise Exception("Unknown target for %s" % self.settings.os)
 
-        flags.append("target-os=%s" % target)
+        if target != "wasm":
+            flags.append("target-os=%s" % target)
+
         return flags
 
     def create_user_config_jam(self, folder):
