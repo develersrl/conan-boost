@@ -17,7 +17,7 @@ lib_list = ['math', 'wave', 'container', 'contract', 'exception', 'graph', 'iost
 class BoostConan(ConanFile):
     name = "boost"
     version = "1.68.0"
-    settings = "os", "arch", "compiler", "build_type"
+    settings = "os", "arch", "compiler", "build_type", "cppstd"
     folder_name = "boost_%s" % version.replace(".", "_")
     description = "Boost provides free peer-reviewed portable C++ source libraries"
     # The current python option requires the package to be built locally, to find default Python
@@ -35,6 +35,8 @@ class BoostConan(ConanFile):
     default_options = ["shared=False", "header_only=False", "fPIC=True", "skip_lib_rename=False", "magic_autolink=False"]
     default_options.extend(["without_%s=False" % libname for libname in lib_list if libname != "python"])
     default_options.append("without_python=True")
+    default_options.append("bzip2:shared=False")
+    default_options.append("zlib:shared=False")
     default_options.append("toolset=")
     default_options = tuple(default_options)
 
@@ -56,10 +58,7 @@ class BoostConan(ConanFile):
     def configure(self):
         if self.zip_bzip2_requires_needed:
             self.requires("bzip2/1.0.6@conan/stable")
-            self.options["bzip2"].shared = False
-
             self.requires("zlib/1.2.11@conan/stable")
-            self.options["zlib"].shared = False
 
     def package_id(self):
         if self.options.header_only:
@@ -140,6 +139,9 @@ class BoostConan(ConanFile):
             if getattr(self.options, "without_%s" % libname):
                 flags.append("--without-%s" % libname)
 
+        if self.settings.cppstd:
+            flags.append("cxxstd=%s" % self.settings.cppstd)
+
         # CXX FLAGS
         cxx_flags = []
         # fPIC DEFINITION
@@ -157,11 +159,9 @@ class BoostConan(ConanFile):
                 if "clang" in str(self.settings.compiler):
                     if str(self.settings.compiler.libcxx) == "libc++":
                         cxx_flags.append("-stdlib=libc++")
-                        cxx_flags.append("-std=c++11")
                         flags.append('linkflags="-stdlib=libc++"')
                     else:
                         cxx_flags.append("-stdlib=libstdc++")
-                        cxx_flags.append("-std=c++11")
             except:
                 pass
 
@@ -194,6 +194,7 @@ class BoostConan(ConanFile):
         self.output.info("Cross building, detecting compiler...")
         arch = "arm" if arch.startswith("arm") else arch
         arch = "x86" if arch == "x86_64" else arch
+        arch = "power" if arch in ["ppc32", "ppc64"] else arch
         flags.append('architecture=%s' % arch)
         bits = {"x86_64": "64", "armv8": "64"}.get(str(self.settings.arch), "32")
         flags.append('address-model=%s' % bits)
@@ -205,6 +206,8 @@ class BoostConan(ConanFile):
                 flags.append('-mfloat-abi=hard')
             flags.append('abi=aapcs')
         elif arch in ["x86", "x86_64"]:
+            pass
+        elif arch in ["power"]:
             pass
         else:
             raise Exception("I'm so sorry! I don't know the appropriate ABI for "
@@ -247,7 +250,7 @@ class BoostConan(ConanFile):
                 self.deps_cpp_info["bzip2"].lib_paths[0].replace('\\', '/'),
                 self.deps_cpp_info["bzip2"].libs[0])
 
-        contents += "\nusing python : {} : {} ;".format(sys.version[:3], sys.executable.replace('\\', '/'))
+        contents += "\nusing python : {} : \"{}\" ;".format(sys.version[:3], sys.executable.replace('\\', '/'))
 
         toolset, version, exe = self.get_toolset_version_and_exe()
         exe = compiler_command or exe  # Prioritize CXX
@@ -265,7 +268,7 @@ class BoostConan(ConanFile):
         if "CFLAGS" in os.environ:
             contents += '<cflags>"%s" ' % os.environ["CFLAGS"]
         if "LDFLAGS" in os.environ:
-            contents += '<ldflags>"%s" ' % os.environ["LDFLAGS"]
+            contents += '<linkflags>"%s" ' % os.environ["LDFLAGS"]
 
         if self.settings.os == "iOS":
             sdk_name = tools.apple_sdk_name(self.settings)
