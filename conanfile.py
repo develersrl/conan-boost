@@ -1,5 +1,7 @@
 from conans import ConanFile
 from conans import tools
+from conans.client.build.cppstd_flags import cppstd_flag
+
 import os
 import sys
 
@@ -140,7 +142,14 @@ class BoostConan(ConanFile):
                 flags.append("--without-%s" % libname)
 
         if self.settings.cppstd:
-            flags.append("cxxstd=%s" % self.settings.cppstd)
+            toolset, _, _ = self.get_toolset_version_and_exe()
+            flags.append("toolset=%s" % toolset)
+            flags.append("cxxflags=%s" % cppstd_flag(
+                    self.settings.get_safe("compiler"),
+                    self.settings.get_safe("compiler.version"),
+                    self.settings.get_safe("cppstd")
+                )
+            )
 
         # CXX FLAGS
         cxx_flags = []
@@ -329,7 +338,8 @@ class BoostConan(ConanFile):
             with tools.vcvars(self.settings) if self.settings.compiler == "Visual Studio" else tools.no_op():
                 self.output.info("Using %s %s" % (self.settings.compiler, self.settings.compiler.version))
                 with tools.chdir(folder):
-                    cmd = "%s %s" % (bootstrap, self._get_boostrap_toolset())
+                    option = "" if tools.os_info.is_windows else "-with-toolset="
+                    cmd = "%s %s%s" % (bootstrap, option, self._get_boostrap_toolset())
                     self.output.info(cmd)
                     self.run(cmd)
         except Exception as exc:
@@ -425,8 +435,8 @@ class BoostConan(ConanFile):
                 else:
                     self.output.info("Enabled magic autolinking (smart and magic decisions)")
 
-                # https://github.com/conan-community/conan-boost/issues/127#issuecomment-404750974
-                self.cpp_info.libs.append("bcrypt")
+                # Force linking with required bcrypt
+                self.cpp_info.defines.append("BOOST_UUID_FORCE_AUTO_LINK")
             elif self.settings.os == "Linux":
                 # https://github.com/conan-community/conan-boost/issues/135
                 self.cpp_info.libs.append("pthread")
