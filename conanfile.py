@@ -285,22 +285,6 @@ class BoostConan(ConanFile):
                             "your architecture. :'(")
         self.output.info("Cross building flags: %s" % flags)
 
-        target = {"Windows": "windows",
-                  "Macos": "darwin",
-                  "Linux": "linux",
-                  "Android": "android",
-                  "iOS": "iphone",
-                  "watchOS": "iphone",
-                  "tvOS": "appletv",
-                  "freeBSD": "freebsd",
-                  "Wasm": "wasm"}.get(str(self.settings.os), None)
-
-        if not target:
-            raise Exception("Unknown target for %s" % self.settings.os)
-
-        if target != "wasm":
-            flags.append("target-os=%s" % target)
-
         return flags
 
     def create_user_config_jam(self, folder):
@@ -402,8 +386,7 @@ class BoostConan(ConanFile):
             with tools.vcvars(self.settings) if self.settings.compiler == "Visual Studio" else tools.no_op():
                 self.output.info("Using %s %s" % (self.settings.compiler, self.settings.compiler.version))
                 with tools.chdir(folder):
-                    option = "" if tools.os_info.is_windows else "-with-toolset="
-                    cmd = "%s %s%s" % (bootstrap, option, self._get_boostrap_toolset())
+                    cmd = bootstrap
                     self.output.info(cmd)
                     self.run(cmd)
         except Exception as exc:
